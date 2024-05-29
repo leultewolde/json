@@ -27,6 +27,9 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-maven
 
+      - name: Install expect
+        run: sudo apt-get install -y expect
+
       - name: Decrypt GPG key
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -42,9 +45,16 @@ jobs:
           echo -e "5\ny\n" | gpg --batch --yes --command-fd 0 --edit-key D423E0E6D1F9AAC6 trust quit
 
       - name: Start gpg-agent
+        run: echo RELOADAGENT | gpg-connect-agent
+
+      - name: Use expect to handle GPG passphrase
         run: |
-          echo RELOADAGENT | gpg-connect-agent
-          gpg-preset-passphrase --preset D423E0E6D1F9AAC6 <<< "${{ secrets.GPG_PASSPHRASE }}"
+          expect -c "
+          spawn gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --sign-key D423E0E6D1F9AAC6
+          expect \"Enter passphrase:\"
+          send \"$GPG_PASSPHRASE\r\"
+          expect eof
+          "
 
       - name: Build and deploy
         env:
