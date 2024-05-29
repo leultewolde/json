@@ -30,6 +30,11 @@ jobs:
       - name: Install expect
         run: sudo apt-get install -y expect
 
+      - name: Configure Maven settings
+        run: |
+          mkdir -p ~/.m2
+          echo '<settings><servers><server><id>ossrh</id><username>${env.OSSRH_USERNAME}</username><password>${env.OSSRH_PASSWORD}</password></server></servers></settings>' > ~/.m2/settings.xml
+
       - name: Decrypt GPG key
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
