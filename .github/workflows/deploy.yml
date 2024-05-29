@@ -32,7 +32,7 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          echo -e "5\ny\n" | gpg --batch --yes --passphrase-fd 0 --command-fd 0 --edit-key ABCD1234EF567890GHIJKL1234567890ABCDEF12 trust quit
+          echo -e "5\ny\n" | gpg --batch --yes --passphrase-fd 0 --command-fd 0 --edit-key F0A2E08438DA6CC21837FFB4D423E0E6D1F9AAC6 trust quit
 
       - name: Build and deploy
         env:
