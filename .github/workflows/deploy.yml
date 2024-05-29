@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - master
 
 jobs:
   build:
@@ -37,8 +38,13 @@ jobs:
           echo "use-agent" >> ~/.gnupg/gpg.conf
           echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
           echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
-          gpg-connect-agent --daemon
-          echo -e "5\ny\n" | gpg --batch --yes --command-fd 0 --edit-key F0A2E08438DA6CC21837FFB4D423E0E6D1F9AAC6 trust quit
+          gpg-connect-agent reloadagent /bye
+          echo -e "5\ny\n" | gpg --batch --yes --command-fd 0 --edit-key D423E0E6D1F9AAC6 trust quit
+
+      - name: Start gpg-agent
+        run: |
+          echo RELOADAGENT | gpg-connect-agent
+          gpg-preset-passphrase --preset D423E0E6D1F9AAC6 <<< "${{ secrets.GPG_PASSPHRASE }}"
 
       - name: Build and deploy
         env:
