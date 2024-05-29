@@ -31,8 +31,14 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          echo -e "5\ny\n" | gpg --batch --yes --passphrase-fd 0 --command-fd 0 --edit-key F0A2E08438DA6CC21837FFB4D423E0E6D1F9AAC6 trust quit
+          echo "use-agent" >> ~/.gnupg/gpg.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpg-connect-agent --daemon
+          echo -e "5\ny\n" | gpg --batch --yes --command-fd 0 --edit-key F0A2E08438DA6CC21837FFB4D423E0E6D1F9AAC6 trust quit
 
       - name: Build and deploy
         env:
@@ -40,4 +46,4 @@ jobs:
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          mvn clean deploy -DskipTests -Dgpg.passphrase="${GPG_PASSPHRASE}"
+          mvn clean deploy -DskipTests -Dgpg.executable=gpg2 -Dgpg.passphrase="${GPG_PASSPHRASE}"
