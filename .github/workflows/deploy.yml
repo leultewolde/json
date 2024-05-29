@@ -1,0 +1,65 @@
+name: Deploy to Maven Central
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up JDK 22
+        uses: actions/setup-java@v2
+        with:
+          java-version: '22'
+          distribution: 'adopt'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven
+
+      - name: Install expect
+        run: sudo apt-get install -y expect
+
+      - name: Decrypt GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "use-agent" >> ~/.gnupg/gpg.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpg-connect-agent reloadagent /bye
+          echo -e "5\ny\n" | gpg --batch --yes --command-fd 0 --edit-key D423E0E6D1F9AAC6 trust quit
+
+      - name: Start gpg-agent
+        run: echo RELOADAGENT | gpg-connect-agent
+
+      - name: Use expect to handle GPG passphrase
+        run: |
+          expect -c "
+          spawn gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --sign-key D423E0E6D1F9AAC6
+          expect \"Enter passphrase:\"
+          send \"$GPG_PASSPHRASE\r\"
+          expect eof
+          "
+
+      - name: Build and deploy
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          mvn clean deploy -DskipTests -Dgpg.executable=gpg2 -Dgpg.passphrase="${GPG_PASSPHRASE}"
